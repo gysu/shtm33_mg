@@ -2,7 +2,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>電信工程施工進度_merge_v1</title>
+  <title>電信工程施工進度_merge_v2</title>
   <style id="mcp-host-fonts">
     @font-face {
       font-family: "Anthropic Sans";
@@ -278,7 +278,7 @@
 
   <div class="db-header">
     <h1>電信維運工程施工進度儀表板</h1>
-    <p id="bureau-date-label">雲林中心工單管理核心數據分析</p>
+    <p id="bureau-date-label">工單管理核心數據分析</p>
   </div>
 
   <div id="loading-indicator" class="loading-status">
@@ -451,11 +451,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
     // ==========================================
-    // 🛠️ GOOGLE SHEETS API V4 設定參數區塊
+    // 🛠️ GOOGLE SHEETS API V4 設定參數區塊 (安全加密版)
     // ==========================================
+    const ENCRYPTED_CONFIG = "LtKd3NdrWo1wNY3s4pABI9O7S9KRFcvFsRwH5N5Q1xUJPpynIxUlsYnu5Bt8QnQlayXpIIn5bdTxEYS37nDFGYVv8SmjYEUAe9nvwHHplz7bq2SWZBTq9pWjge2g/oS2yxaPzqQAjv4Wy7eLHjebQsG4G7XxWhx9cNvdnAM8+tGHP6b7rB9dkPxZjPXUVP8bEcxV8voky+ek+GjjkXOkLds=";
+
     const CONFIG = {
-      SPREADSHEET_ID: "1gLn5Tz-TcP8LELMNH6HxkLEa67DLWYX0Uhx4oNZvmIY", 
-      API_KEY: "AIzaSyA8Ok4r6-w8Ggii57gjPafEROlninDL6sg", 
+      SPREADSHEET_ID: "", 
+      API_KEY: "", 
       RANGE: "工作表1!A:ZZ",
       ROAD_MASTER_SPREADSHEET_ID: "1d84D9IYuJIdyXwIicYCGFb9TKp9ar9h4xfl5A4Nq2b0",
       ROAD_MASTER_RANGE: "工作表1!A:ZZ",
@@ -463,6 +465,41 @@
       ROAD_DETAIL_RANGE: "施工紀錄明細表!A:ZZ"
     };
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_6NGbtAC7rSLFBUCNpO68E0YSATzFNxK4HaUl1nMhhTPWXED1RR2NDbTVuMHmfY8x/exec";
+
+    // 核心安全驗證解密程序
+    async function initSecureConnection() {
+      const password = prompt("🔐 請輸入網頁瀏覽密碼：");
+      if (!password) {
+        document.getElementById('loading-indicator').innerHTML = `❌ <b>拒絕存取</b>：必須輸入密碼才能檢視工程資訊。`;
+        return;
+      }
+
+      try {
+        const textEncoder = new TextEncoder();
+        const combined = new Uint8Array(atob(ENCRYPTED_CONFIG).split("").map(c => c.charCodeAt(0)));
+        const salt = combined.slice(0, 16);
+        const iv = combined.slice(16, 28);
+        const encryptedData = combined.slice(28);
+
+        const keyMaterial = await window.crypto.subtle.importKey("raw", textEncoder.encode(password), "PBKDF2", false, ["deriveBits", "deriveKey"]);
+        const key = await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: 10000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+        const decryptedDecoded = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, encryptedData);
+        
+        const decryptedText = new TextDecoder().decode(decryptedDecoded);
+        if (!decryptedText) throw new Error("解密無效。");
+        const realConfig = JSON.parse(decryptedText);
+        
+        CONFIG.SPREADSHEET_ID = realConfig.SPREADSHEET_ID;
+        CONFIG.API_KEY = realConfig.API_KEY;
+
+        await fetchCloudSheetsData();
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loading-indicator').innerHTML = `❌ <b>驗證失敗</b>：密碼錯誤，無法解密安全金鑰。`;
+        document.getElementById('loading-indicator').style.background = "var(--color-background-danger)";
+        document.getElementById('loading-indicator').style.color = "var(--color-text-danger)";
+      }
+    }
     // ==========================================
                             //  https://script.google.com/macros/s/AKfycbw_6NGbtAC7rSLFBUCNpO68E0YSATzFNxK4HaUl1nMhhTPWXED1RR2NDbTVuMHmfY8x/exec
     let globalData = [];
@@ -586,8 +623,9 @@
     }
 
     async function fetchCloudSheetsData() {
-      if (CONFIG.API_KEY.includes("請在此處貼上")) {
-        document.getElementById('loading-indicator').innerHTML = `⚠️ <b>參數尚未設定完成</b>：請先在 HTML 原始碼中修改 <code>CONFIG.API_KEY</code> 填入您的 GCP 金鑰。`;
+      document.getElementById('loading-indicator').innerText = "🔄 密碼驗證成功！載入最新工單與路權資料中...";
+      if (!CONFIG.API_KEY || !CONFIG.SPREADSHEET_ID) {
+        document.getElementById('loading-indicator').innerHTML = `⚠️ <b>參數尚未解密或設定未完成</b>。`;
         return;
       }
       
@@ -1600,7 +1638,7 @@ function renderTable() {
       XLSX.writeFile(wb, `CHT_工單進階篩選報表_${today.getFullYear()}${mm}${dd}.xlsx`);
     }
 
-    window.addEventListener('DOMContentLoaded', fetchCloudSheetsData);
+    window.addEventListener('DOMContentLoaded', initSecureConnection);
   </script>
 </body>
 </html>
