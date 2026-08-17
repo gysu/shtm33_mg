@@ -174,6 +174,10 @@
       border-radius: 8px;
       padding: 14px;
       box-shadow: var(--shadow-sm);
+      position: sticky;
+      left: 10px;
+      max-width: calc(100vw - 80px);
+      box-sizing: border-box;
     }
     .road-grid {
       display: grid;
@@ -1186,16 +1190,23 @@
       const details = globalRoadDetailData[caseNo] || [];
 
       if (!road) {
+        const designUrl = `https://pwd.yunlin.gov.tw/YLPipe/NewApp/CaseShow?AppNo=${encodeURIComponent(caseNo)}&FolderName=DesignPic`;
         return `
           <div class="road-card">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; justify-content:flex-start; align-items:center; flex-wrap:wrap; gap:16px;">
               <div style="font-size:13px; color:var(--color-text-primary);">
                 <b>🛣️ 路權案件編號：</b><span style="font-family:monospace; font-weight:700; color:var(--color-text-info);">${caseNo}</span>
                 <span style="color:var(--color-text-tertiary); margin-left:8px;">(此案件尚未在路權試算表建檔或正在同步中)</span>
               </div>
-              <a href="https://pwd.yunlin.gov.tw/YLPipe/CaseState?AppNo=${encodeURIComponent(caseNo)}" target="_blank" rel="noopener noreferrer" class="road-link-pill">
-                🌐 前往雲林管線挖掘系統查看 ↗
-              </a>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <a href="${designUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;"><span class="tag" style="background:#e3f2fd; color:#0b66c2; border:1px solid #bbdefb; font-weight:600;">📐 查看設計圖</span></a>
+                <a href="https://pwd.yunlin.gov.tw/YLPipe/CaseState?AppNo=${encodeURIComponent(caseNo)}" target="_blank" rel="noopener noreferrer" class="road-link-pill">
+                  🔗歷程
+                </a>
+                <a href="https://pwd.yunlin.gov.tw/YLPipe/AppIn" target="_blank" rel="noopener noreferrer" class="road-link-pill">
+                  🌐 前往雲林管線挖掘系統查看 ↗
+                </a>
+              </div>
             </div>
           </div>
         `;
@@ -1223,9 +1234,17 @@
       }
 
       const parsedDesign = parseHyperlink(road.design);
+      let designUrl = parsedDesign.url;
+      if (!designUrl && road.design && (road.design.startsWith('http://') || road.design.startsWith('https://'))) {
+        designUrl = road.design;
+      }
+      if (!designUrl && road.caseNo) {
+        designUrl = `https://pwd.yunlin.gov.tw/YLPipe/NewApp/CaseShow?AppNo=${encodeURIComponent(road.caseNo)}&FolderName=DesignPic`;
+      }
+
       let designMarkup = '';
-      if (parsedDesign.url) {
-        designMarkup = `<a href="${parsedDesign.url}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;"><span class="tag" style="background:#e3f2fd; color:#0b66c2; border:1px solid #bbdefb; font-weight:600;">📐 查看設計圖</span></a>`;
+      if (designUrl) {
+        designMarkup = `<a href="${designUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;"><span class="tag" style="background:#e3f2fd; color:#0b66c2; border:1px solid #bbdefb; font-weight:600;">📐 查看設計圖</span></a>`;
       }
 
       let historyTableHtml = '';
@@ -1271,7 +1290,7 @@
 
       return `
         <div class="road-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border-tertiary); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; justify-content: flex-start; align-items: center; border-bottom: 1px solid var(--color-border-tertiary); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 16px;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span style="font-size: 14px; font-weight: 700; color: var(--color-text-info);">🛣️ 路權案件編號：<span style="font-family: monospace; font-size: 15px;">${road.caseNo}</span></span>
               ${statusTagHtml}
@@ -1281,6 +1300,9 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               ${designMarkup}
               <a href="https://pwd.yunlin.gov.tw/YLPipe/CaseState?AppNo=${encodeURIComponent(road.caseNo)}" target="_blank" rel="noopener noreferrer" class="road-link-pill">
+                🔗歷程
+              </a>
+              <a href="https://pwd.yunlin.gov.tw/YLPipe/AppIn" target="_blank" rel="noopener noreferrer" class="road-link-pill">
                 🌐 雲林管線挖掘系統 ↗
               </a>
             </div>
@@ -1500,7 +1522,6 @@ function renderTable() {
                 <span class="expand-sign">${expandSign}</span>
                 <span style="font-family:monospace; font-weight:600;">${caseNo}</span>
               </button>
-              <a href="https://pwd.yunlin.gov.tw/YLPipe/CaseState?AppNo=${encodeURIComponent(caseNo)}" target="_blank" rel="noopener noreferrer" style="color:var(--color-text-info); font-size:11px; text-decoration:none; padding:2px 4px; border-radius:3px; background:var(--color-background-info);" title="開啟雲林管線挖掘系統案件">🔗</a>
             </div>
           `;
         } else if (d.rd1Note && String(d.rd1Note).trim() !== '' && String(d.rd1Note).trim() !== '---') {
