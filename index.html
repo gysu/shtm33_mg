@@ -247,7 +247,7 @@
     .table-container { overflow-x: auto; background: var(--color-background-primary); border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); }
     #detail-table { width: 2260px; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
     #detail-table th { text-align: left; padding: 8px; border-bottom: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); font-weight: 500; background: var(--color-background-secondary); }
-    #detail-table td { padding: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #detail-table td { padding: 8px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); white-space: normal; word-break: break-all; }
     #detail-table tr:hover td { background: var(--color-background-secondary); }
 
     .note-input { width: 130px; height: 26px; font-size: 12px; padding: 2px 6px; border: 0.5px solid var(--color-border-primary); border-radius: 4px; background: var(--color-background-primary); color: var(--color-text-primary); }
@@ -416,8 +416,8 @@
       <button class="filter-btn active" data-col="13" onclick="toggleColumn(13)">完工狀態(AG)</button>
       <button class="filter-btn active" data-col="14" onclick="toggleColumn(14)">土木ok</button>
       <button class="filter-btn active" data-col="15" onclick="toggleColumn(15)">RD1備註(路權)</button>
-      <button class="filter-btn active" data-col="16" onclick="toggleColumn(16)">建設地點</button>
-      <button class="filter-btn active" data-col="17" onclick="toggleColumn(17)">手動備註</button>
+      <button class="filter-btn active" data-col="16" onclick="toggleColumn(16)">手動備註</button>
+      <button class="filter-btn active" data-col="17" onclick="toggleColumn(17)">建設地點</button>
       <button class="filter-btn active" data-col="18" onclick="toggleColumn(18)">PCD施工備註</button>
     </div>
 
@@ -425,25 +425,25 @@
       <table id="detail-table">
         <thead>
           <tr>
-            <th style="width:110px">工程編號</th>
-            <th style="width:100px">工作單流水號</th>
-            <th style="width:120px;text-align:center;background:var(--color-background-info);color:var(--color-text-info)">📁 設計圖上傳(D)</th>
+            <th style="width:90px">工程編號</th>
+            <th style="width:90px">工作單流水號</th>
+            <th style="width:90px;text-align:center;background:var(--color-background-info);color:var(--color-text-info)">📁 設計圖上傳(D)</th>
             <th style="width:110px">🏛️ 實績歸列局(E)</th>
             <th style="width:85px">👤 設計者(F)</th>
             <th style="width:90px">📅 設計日期(K)</th>
-            <th style="width:110px">🏷️ 設計代號(N)</th>
-            <th style="width:120px">🏗️ 工程編號_x(O)</th>
-            <th style="width:85px">交商日期(P)</th>
-            <th style="width:85px">預完日期(T)</th>
-            <th style="width:150px">預算動支別(W)</th>
-            <th style="width:120px">用途別</th>
+            <th style="width:100px">🏷️ 設計代號(N)</th>
+            <th style="width:100px">🏗️ 工程編號_x(O)</th>
+            <th style="width:75px">交商日期(P)</th>
+            <th style="width:75px">預完日期(T)</th>
+            <th style="width:130px">預算動支別(W)</th>
+            <th style="width:70px">用途別</th>
             <th style="width:75px;text-align:right">交商積點(AE)</th>
-            <th style="width:130px;text-align:center">完工狀態(AG)</th>
-            <th style="width:90px;text-align:center;background:var(--color-background-success);color:var(--color-text-success)">土木ok</th>
+            <th style="width:110px;text-align:center">完工狀態(AG)</th>
+            <th style="width:70px;text-align:center;background:var(--color-background-success);color:var(--color-text-success)">土木ok</th>
             <th style="width:120px">RD1備註 (路權)</th>
-            <th style="width:150px; color:var(--color-text-info)">📍 建設地點</th>
-            <th style="width:210px; background:var(--color-background-info)">📝 手動備註</th>
-            <th style="width:200px">PCD施工備註</th>
+            <th style="width:160px; background:var(--color-background-info)">📝 手動備註</th>
+            <th style="width:auto; color:var(--color-text-info)">📍 建設地點</th>
+            <th style="width:auto">PCD施工備註</th>
           </tr>
         </thead>
         <tbody id="detail-tbody"></tbody>
@@ -504,6 +504,17 @@
         document.getElementById('loading-indicator').style.color = "var(--color-text-danger)";
       }
     }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     // ==========================================
                             //  https://script.google.com/macros/s/AKfycbw_6NGbtAC7rSLFBUCNpO68E0YSATzFNxK4HaUl1nMhhTPWXED1RR2NDbTVuMHmfY8x/exec
     let globalData = [];
@@ -521,7 +532,7 @@
     
     // 🚀 寬度嚴格陣列，19 欄完美對應 2260px，防跑位神器
     let hiddenColumns = new Set();
-    const columnWidths = [110, 100, 120, 110, 85, 90, 110, 120, 85, 85, 150, 120, 75, 130, 90, 120, 150, 210, 200];
+    const columnWidths = [110, 100, 120, 110, 85, 90, 110, 120, 85, 85, 150, 120, 75, 130, 90, 120, 210, 150, 200];
 
     let statusChartInstance = null;
     let pointsChartInstance = null;
@@ -1515,23 +1526,25 @@ function renderTable() {
           const expandSign = isExpanded ? '➖' : '➕';
           const isRoadMatch = !!globalRoadMasterData[caseNo];
           const btnTitle = isRoadMatch ? `點擊${isExpanded ? '收合' : '展開'}路權資料 (${globalRoadMasterData[caseNo].status})` : `點擊${isExpanded ? '收合' : '展開'}路權案件資訊`;
+          const safeCaseNo = escapeHtml(caseNo);
+          const safeId = escapeHtml(d.id);
 
           rd1Markup = `
             <div style="display:inline-flex; align-items:center; gap:4px; max-width:100%;">
-              <button class="road-toggle-btn ${isExpanded ? 'expanded' : ''}" onclick="toggleRoadRow('${d.id}', '${caseNo}', event)" title="${btnTitle}">
+              <button class="road-toggle-btn ${isExpanded ? 'expanded' : ''}" onclick="toggleRoadRow('${safeId}', '${safeCaseNo}', event)" title="${btnTitle}">
                 <span class="expand-sign">${expandSign}</span>
-                <span style="font-family:monospace; font-weight:600;">${caseNo}</span>
+                <span style="font-family:monospace; font-weight:600;">${safeCaseNo}</span>
               </button>
             </div>
           `;
         } else if (d.rd1Note && String(d.rd1Note).trim() !== '' && String(d.rd1Note).trim() !== '---') {
-          rd1Markup = `<span style="font-size:12px; color:var(--color-text-secondary);">${d.rd1Note}</span>`;
+          rd1Markup = `<span style="font-size:12px; color:var(--color-text-secondary);">${escapeHtml(d.rd1Note)}</span>`;
         }
 
         let childRowMarkup = '';
         if (caseNo && isExpanded) {
           childRowMarkup = `
-            <tr class="road-child-row" id="road-child-${d.id}">
+            <tr class="road-child-row" id="road-child-${escapeHtml(d.id)}">
               <td colspan="${dynamicColspan}">
                 ${renderRoadDetailCard(caseNo, d)}
               </td>
@@ -1541,47 +1554,45 @@ function renderTable() {
 
         return `
           <tr>
-            <td style="font-family:monospace;font-size:13px;font-weight:600;color:var(--color-text-info); ${checkHide(0)}">${d.engNo || ''}</td>
-            <td style="font-family:monospace;font-size:13px;font-weight:500;color:var(--color-text-secondary); ${checkHide(1)}">${d.id || ''}</td>
+            <td style="font-family:monospace;font-size:13px;font-weight:600;color:var(--color-text-info); ${checkHide(0)}">${escapeHtml(d.engNo || '')}</td>
+            <td style="font-family:monospace;font-size:13px;font-weight:500;color:var(--color-text-secondary); ${checkHide(1)}">${escapeHtml(d.id || '')}</td>
             
             <td style="text-align:center; vertical-align:middle; ${checkHide(2)}">${drawingMarkup}</td>
             
-            <td style="${checkHide(3)}">${d.actualBureau || ''}</td>
-            <td style="${checkHide(4)}">${d.realDesigner || ''}</td>
-            <td style="font-family:monospace; ${checkHide(5)}">${d.designDate || ''}</td>
-            <td style="font-family:monospace; ${checkHide(6)}">${d.designCode || ''}</td>
-            <td style="font-family:monospace;color:var(--color-text-info); ${checkHide(7)}">${d.engNoX || ''}</td>
+            <td style="${checkHide(3)}">${escapeHtml(d.actualBureau || '')}</td>
+            <td style="${checkHide(4)}">${escapeHtml(d.realDesigner || '')}</td>
+            <td style="font-family:monospace; ${checkHide(5)}">${escapeHtml(d.designDate || '')}</td>
+            <td style="font-family:monospace; ${checkHide(6)}">${escapeHtml(d.designCode || '')}</td>
+            <td style="font-family:monospace;color:var(--color-text-info); ${checkHide(7)}">${escapeHtml(d.engNoX || '')}</td>
 
-            <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary); ${checkHide(8)}">${d.handover || ''}</td>
-            <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary); ${checkHide(9)}">${d.estComplete || ''}</td>
-            <td style="font-size:13px;color:var(--color-text-secondary); ${checkHide(10)}">${d.budget || ''}</td>
-            <td style="font-size:13px;color:var(--color-text-secondary); ${checkHide(11)}">${d.purpose || ''}</td>
+            <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary); ${checkHide(8)}">${escapeHtml(d.handover || '')}</td>
+            <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary); ${checkHide(9)}">${escapeHtml(d.estComplete || '')}</td>
+            <td style="font-size:13px;color:var(--color-text-secondary); ${checkHide(10)}">${escapeHtml(d.budget || '')}</td>
+            <td style="font-size:13px;color:var(--color-text-secondary); ${checkHide(11)}">${escapeHtml(d.purpose || '')}</td>
             <td style="text-align:right;font-weight:500;font-family:monospace;font-size:13px; ${checkHide(12)}">${Math.round(d.points || 0).toLocaleString()}</td>
             <td style="text-align:center; ${checkHide(13)}">${statusTag(d.status || '', d.estComplete || '', todayNum)}</td>
             
             <td style="text-align:center; ${checkHide(14)}">
               <div style="display:flex; align-items:center; justify-content:center; gap:4px;">
-                <input type="checkbox" id="civil-${d.id}" style="width:16px; height:16px; cursor:pointer;" ${(d.civilOk || '').startsWith('OK') ? 'checked' : ''} onchange="saveCivilStatus('${d.id}', this.checked)">
-                <span id="civil-status-${d.id}" style="font-size:11px;"></span>
+                <input type="checkbox" id="civil-${escapeHtml(d.id)}" style="width:16px; height:16px; cursor:pointer;" ${(d.civilOk || '').startsWith('OK') ? 'checked' : ''} onchange="saveCivilStatus('${escapeHtml(d.id)}', this.checked)">
+                <span id="civil-status-${escapeHtml(d.id)}" style="font-size:11px;"></span>
               </div>
             </td>
             
-            <td style="font-size:13px;color:var(--color-text-tertiary); ${checkHide(15)}" title="${d.rd1Note || ''}">${rd1Markup}</td>
-            <td style="color:var(--color-text-secondary);font-size:13px; ${checkHide(16)}" title="${d.buildLocation || ''}">${d.buildLocation || ''}</td>
-            
-            <td style="${checkHide(17)}">
+            <td style="font-size:13px;color:var(--color-text-tertiary); ${checkHide(15)}" title="${escapeHtml(d.rd1Note || '')}">${rd1Markup}</td>
+            <td style="${checkHide(16)}">
               <div style="display:flex; align-items:center;">
-                <input type="text" id="note-${d.id}" class="note-input" value="${d.manualNote || ''}" placeholder="點擊鍵入備註...">
-                <button id="save-btn-${d.id}" class="note-save-btn" onclick="saveManualNote('${d.id}')">儲存</button>
+                <input type="text" id="note-${escapeHtml(d.id)}" class="note-input" value="${escapeHtml(d.manualNote || '')}" placeholder="點擊鍵入備註...">
+                <button id="save-btn-${escapeHtml(d.id)}" class="note-save-btn" onclick="saveManualNote('${escapeHtml(d.id)}')">儲存</button>
               </div>
             </td>
-            <td style="color:var(--color-text-secondary);font-size:13px; ${checkHide(18)}" title="${d.pcdNote || ''}">${d.pcdNote || ''}</td>
+            
+            <td style="color:var(--color-text-secondary);font-size:13px; ${checkHide(17)}" title="${escapeHtml(d.buildLocation || '')}">${escapeHtml(d.buildLocation || '')}</td>
+            <td style="color:var(--color-text-secondary);font-size:13px; ${checkHide(18)}" title="${escapeHtml(d.pcdNote || '')}">${escapeHtml(d.pcdNote || '')}</td>
           </tr>
           ${childRowMarkup}
         `;
       }).join('');
-
-
 
       if (currentFilteredData.length > 60) {
         tbody.innerHTML += `<tr><td colspan="${dynamicColspan}" style="text-align:center;color:var(--color-text-tertiary);background:var(--color-background-secondary);font-size:11px;padding:8px">💡 提示：符合五維複合條件共 ${currentFilteredData.length} 筆，已自動分流顯示前 60 筆。</td></tr>`;
@@ -1610,7 +1621,7 @@ function renderTable() {
         "設計日期", "設計代號", "工程編號_x", "交商日期", "預完日期", 
         "預算動支別", "用途別", "交商積點數", "回報狀態", "土木ok", 
         "RD1備註", "路權案件編號", "路權申請狀態", "路權單位", "路權廠商", 
-        "路證有效起迄", "路權手動備註", "建設地點", "手動備註", "PCD施工備註"
+        "路證有效起迄", "路權手動備註", "手動備註", "建設地點", "PCD施工備註"
       ];
       const exportData = [headers];
 
@@ -1645,7 +1656,7 @@ function renderTable() {
           d.designDate, d.designCode, d.engNoX, d.handover, d.estComplete, 
           d.budget, d.purpose, d.points, textStatus, d.civilOk, 
           d.rd1Note, caseNo, roadStatus, roadAuth, roadContractor, 
-          roadPermitRange, roadManualNote, d.buildLocation, d.manualNote, d.pcdNote
+          roadPermitRange, roadManualNote, d.manualNote, d.buildLocation, d.pcdNote
         ];
         exportData.push(rowData);
       });
