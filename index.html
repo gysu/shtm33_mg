@@ -1077,7 +1077,9 @@
 
     function toggleColumn(idx) {
       const btn = event.currentTarget;
-      const ths = document.querySelectorAll('#detail-table th');
+      const ths = document.querySelectorAll('#detail-table thead tr:first-child th');
+      const fcells = document.querySelectorAll('#col-filter-row td');
+      if (fcells[idx]) fcells[idx].style.display = hiddenColumns.has(idx) ? '' : 'none';
       
       if (hiddenColumns.has(idx)) {
         hiddenColumns.delete(idx);
@@ -1447,8 +1449,11 @@ function renderTable() {
         let bName = d.actualBureau ? String(d.actualBureau).replace('雲林', '').trim() : '';
         const matchesBureau = (selectedBureaus.size === 0) || selectedBureaus.has(bName);
 
-        return matchesText && matchesEngNo && matchesBudget && matchesPurpose && matchesDesigner && matchesStatus && matchesBureau;
+        return matchesText && matchesEngNo && matchesBudget && matchesPurpose && matchesDesigner && matchesStatus && matchesBureau && matchColumnFilters(d);
       });
+      sortFilteredData();
+      refreshColSelects();
+      updateSortIndicators();
 
       if(document.getElementById('filter-count')) {
         document.getElementById('filter-count').innerText = `${currentFilteredData.length.toLocaleString()} 件篩選工單`;
@@ -1586,6 +1591,155 @@ function renderTable() {
         tbody.innerHTML = `<tr><td colspan="${dynamicColspan}" style="text-align:center;color:var(--color-text-tertiary);padding:24px">❌ 查無任何匹配工單。</td></tr>`;
       }
     }
+
+    // ==========================================
+    // 🔎 欄位排序 + 欄位下方個別篩選
+    // ==========================================
+    var COL_DEFS = [
+      { get: d => d.engNo },
+      { get: d => d.id },
+      { get: d => isDrawingUploaded(d) ? '已上傳' : '未上傳', select: true },
+      { get: d => d.actualBureau, select: true },
+      { get: d => d.realDesigner, select: true },
+      { get: d => d.designDate },
+      { get: d => d.designCode },
+      { get: d => d.engNoX },
+      { get: d => d.handover },
+      { get: d => d.estComplete },
+      { get: d => d.budget, select: true },
+      { get: d => d.purpose, select: true },
+      { get: d => d.points || 0, num: true },
+      { get: d => getStatusLabel(d), select: true },
+      { get: d => (d.civilOk || '').startsWith('OK') ? 'OK' : '未完成', select: true },
+      { get: d => d.rd1Note },
+      { get: d => d.manualNote },
+      { get: d => d.buildLocation },
+      { get: d => d.pcdNote }
+    ];
+    var colFilters = {};            // { colIdx: 字串 }
+    var colSort = { idx: -1, dir: 0 }; // dir: 1 升冪 / -1 降冪 / 0 無
+    var colSelectSig = {};
+
+    function isDrawingUploaded(d) {
+      const v = d.designDrawing ? String(d.designDrawing).trim() : '';
+      return !(v === '' || v.toLowerCase().includes('未上傳') || v.toLowerCase() === 'null');
+    }
+    function getStatusLabel(d) {
+      const s = d.status || '';
+      if (s.includes('1.壓完工工程') || s.includes('1.聯通已完工') || s.includes('1.已完工')) return '已完工';
+      const t = new Date();
+      const todayNum = parseInt(`${t.getFullYear() - 1911}${String(t.getMonth() + 1).padStart(2, '0')}${String(t.getDate()).padStart(2, '0')}`, 10);
+      const est = parseInt(d.estComplete, 10);
+      if (!isNaN(est) && todayNum > est) return '逾期';
+      if (s.includes('3.未完工擇日')) return '擇日續工';
+      return '施工中';
+    }
+    function matchColumnFilters(d) {
+      for (const k in colFilters) {
+        const q = colFilters[k];
+        if (!q) continue;
+        const def = COL_DEFS[k];
+        const v = String(def.get(d) ?? '');
+        if (def.select ? v !== q : !v.toLowerCase().includes(q.toLowerCase())) return false;
+      }
+      return true;
+    }
+    function sortFilteredData() {
+      if (colSort.dir === 0 || colSort.idx < 0) return;
+      const def = COL_DEFS[colSort.idx], dir = colSort.dir;
+      currentFilteredData.sort((a, b) => {
+        let va = def.get(a), vb = def.get(b);
+        const ea = va === '' || va == null, eb = vb === '' || vb == null;
+        if (ea || eb) return ea === eb ? 0 : (ea ? 1 : -1); // 空值永遠排最後
+        if (def.num) return (Number(va) - Number(vb)) * dir;
+        return String(va).localeCompare(String(vb), 'zh-Hant', { numeric: true }) * dir;
+      });
+    }
+    function refreshColSelects() {
+      document.querySelectorAll('#col-filter-row select').forEach(sel => {
+        const idx = +sel.dataset.col, def = COL_DEFS[idx];
+        const vals = [...new Set(globalData.map(d => String(def.get(d) ?? '')).filter(v => v !== ''))].sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
+        const sig = vals.join('|');
+        if (colSelectSig[idx] === sig) return;
+        colSelectSig[idx] = sig;
+        const cur = colFilters[idx] || '';
+        sel.innerHTML = '<option value="">全部</option>' + vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        sel.value = cur;
+      });
+    }
+    function updateSortIndicators() {
+      document.querySelectorAll('#detail-table thead tr:first-child th').forEach((th, i) => {
+        const ind = th.querySelector('.sort-ind');
+        if (ind) ind.textContent = colSort.idx === i ? (colSort.dir === 1 ? '▲' : '▼') : '⇅';
+        th.classList.toggle('sorted', colSort.idx === i && colSort.dir !== 0);
+      });
+      document.querySelectorAll('#col-filter-row input, #col-filter-row select').forEach(el => el.classList.toggle('has-val', !!el.value));
+      const activeCnt = Object.values(colFilters).filter(Boolean).length;
+      const btn = document.getElementById('btn-clear-col-filters');
+      if (btn) btn.style.display = (activeCnt || colSort.dir) ? '' : 'none';
+      if (btn) btn.textContent = `✖ 清除欄位篩選/排序${activeCnt ? ` (${activeCnt})` : ''}`;
+    }
+    function initColumnTools() {
+      const style = document.createElement('style');
+      style.textContent = `
+        #detail-table thead tr:first-child th { cursor:pointer; user-select:none; position:sticky; top:0; z-index:3; }
+        #detail-table thead tr:first-child th:hover { filter:brightness(0.95); }
+        #detail-table th .sort-ind { font-size:11px; opacity:.4; margin-left:4px; }
+        #detail-table th.sorted .sort-ind { opacity:1; color:var(--color-text-info); }
+        #col-filter-row td { padding:4px 6px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-secondary); position:sticky; top:35px; z-index:3; }
+        #col-filter-row input, #col-filter-row select { width:100%; box-sizing:border-box; font-size:12px; padding:4px 6px; border:0.5px solid var(--color-border-secondary); border-radius:4px; background:var(--color-background-primary, #fff); color:var(--color-text-primary); }
+        #col-filter-row input.has-val, #col-filter-row select.has-val { border-color:var(--color-text-info); box-shadow:0 0 0 1px var(--color-text-info) inset; }
+        #btn-clear-col-filters { margin:6px 0; padding:4px 10px; font-size:12px; border-radius:4px; border:0.5px solid var(--color-border-secondary); background:var(--color-background-secondary); color:var(--color-text-danger); cursor:pointer; }
+      `;
+      document.head.appendChild(style);
+
+      const thead = document.querySelector('#detail-table thead');
+      const headRow = thead.querySelector('tr');
+      [...headRow.children].forEach((th, i) => {
+        th.insertAdjacentHTML('beforeend', '<span class="sort-ind">⇅</span>');
+        th.title = '點擊排序（升冪 → 降冪 → 取消）';
+        th.addEventListener('click', () => {
+          if (colSort.idx !== i) colSort = { idx: i, dir: 1 };
+          else colSort.dir = colSort.dir === 1 ? -1 : (colSort.dir === -1 ? 0 : 1);
+          if (colSort.dir === 0) colSort.idx = -1;
+          renderTable();
+        });
+      });
+
+      const fr = document.createElement('tr');
+      fr.id = 'col-filter-row';
+      COL_DEFS.forEach((def, i) => {
+        const td = document.createElement('td');
+        td.innerHTML = def.select
+          ? `<select data-col="${i}"><option value="">全部</option></select>`
+          : `<input type="search" data-col="${i}" placeholder="篩選...">`;
+        fr.appendChild(td);
+      });
+      thead.appendChild(fr);
+
+      let timer;
+      fr.addEventListener('input', e => {
+        const el = e.target; if (el.tagName !== 'INPUT') return;
+        clearTimeout(timer);
+        timer = setTimeout(() => { colFilters[el.dataset.col] = el.value.trim(); renderTable(); }, 200);
+      });
+      fr.addEventListener('change', e => {
+        const el = e.target; if (el.tagName !== 'SELECT') return;
+        colFilters[el.dataset.col] = el.value; renderTable();
+      });
+      fr.addEventListener('click', e => e.stopPropagation());
+
+      const btn = document.createElement('button');
+      btn.id = 'btn-clear-col-filters'; btn.style.display = 'none';
+      btn.onclick = () => {
+        colFilters = {}; colSort = { idx: -1, dir: 0 };
+        fr.querySelectorAll('input').forEach(i => i.value = '');
+        fr.querySelectorAll('select').forEach(s => s.value = '');
+        renderTable();
+      };
+      document.querySelector('.table-container').before(btn);
+    }
+    initColumnTools();
 
     function statusTag(s, estComplete, todayNum) {
       if (s.includes('1.壓完工工程') || s.includes('1.聯通已完工') || s.includes('1.已完工')) return `<span class="tag" style="background:#E1F5EE;color:#085041">已完工</span>`;
